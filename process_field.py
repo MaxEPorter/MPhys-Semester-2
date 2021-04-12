@@ -57,7 +57,10 @@ if __name__ == '__main__':
     print(fluxes)
     print(errors)
 
+    # last arg is the index of source in flux table, eg 0 is first source
     plot_fluxes(fluxes, errors, 0)
+
+    # plot standard deviation of all sources in table as histogram
     hist_dev(fluxes, errors)
 
     plt.show()
