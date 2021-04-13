@@ -47,14 +47,16 @@ def hist_dev(flx, err):
     fig = plt.figure()
     ax = fig.add_subplot()
     print(std)
-    ax.hist(std)
+    ax.hist(std, bins=20)
     ax.set_ylabel('freq')
     ax.set_xlabel('std')
 
 
 if __name__ == '__main__':
     fluxes, errors = input_field.get_sources(input_field.get_fname())
+    print('Fluxes')
     print(fluxes)
+    print('Errors')
     print(errors)
 
     # last arg is the index of source in flux table, eg 0 is first source
