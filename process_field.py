@@ -16,6 +16,7 @@ def epoch_to_date(df):
             continue
 
         # d.append(datetime.strptime(i, '%d/%m/%y'))
+        print(i)
         d.append(i)
 
     n = []
