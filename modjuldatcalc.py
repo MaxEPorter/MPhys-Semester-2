@@ -63,7 +63,7 @@ pointcolour = str('blue')
 
 fileName = str('test1.csv')
 
-################## Maincode ##########################
+################## Maincode ###########################
 
 
 x = []
