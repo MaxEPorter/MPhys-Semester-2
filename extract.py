@@ -2,8 +2,8 @@ import numpy as np
 import pandas
 import os
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import datetime
+from astropy.time import Time
 
 
 def extract():
@@ -12,42 +12,45 @@ def extract():
 
     for filename in os.listdir('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733'):
         data.append(pandas.read_csv('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/' + filename))
+
+        # get datetime
+        day = int(filename[3:5])
+        mon = filename[5:8]
+        year = int(filename[8:12])
+        d = '{}-{}-{}'.format(day, mon, year)
+        d = datetime.datetime.strptime(d, '%d-%b-%Y')
+
+        dates = []
+        for i in range(data[-1].shape[0]):
+            dates.append(Time(d).mjd)
+
+        data[-1]['dates'] = dates
+
     j17 = pandas.concat(data)
 
     data = []
     for filename in os.listdir('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2208+5500'):
         data.append(pandas.read_csv('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2208+5500/' + filename))
+
+        # get datetime
+        minus = filename.find('-')
+        day = int(filename[minus+1:minus+3])
+        mon = filename[minus+3:minus+6]
+        year = int(filename[minus+6:minus+8])
+        d = '{}-{}-{}'.format(day, mon, year)
+        d = datetime.datetime.strptime(d, '%d-%b-%y')
+
+        dates = []
+        for i in range(data[-1].shape[0]):
+            dates.append(Time(d).mjd)
+
+        data[-1]['dates'] = dates
+
     j08 = pandas.concat(data)
 
     print('loaded j17 and j08')
 
     return j17, j08
-
-
-def combine_sources(data):
-
-    ra = []
-    de = []
-    for i, j in zip(data['ra'], data[' dec']):
-        ra.append(i)
-        de.append(j)
-
-    # 10arsec = 0.002777 deg
-    rab = np.arange(330.6, 336.1, 0.1)
-    deb = np.arange(54, 58.4, 0.1)
-
-    plt.hist2d(ra, de, bins=[rab, deb], cmap='Greys')
-    plt.colorbar()
-
-    #print(pandas.cut(data['ra']))
-    d1 = data.assign(acut=pandas.cut(data['ra'], bins=rab, labels=False), bcut=pandas.cut(data[' dec'], bins=deb, labels=False))
-
-    d2 = d1.assign(bin=pandas.Categorical(d1.filter(regex='cut').apply(tuple, 1)))
-
-    plt.figure()
-    plt.scatter(d2['acut'], d2['bcut'])
-
-    return d2
 
 
 def isolate_sources(data, tname='C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/pb_30jul2012_J2217.csv'):
@@ -80,71 +83,79 @@ def isolate_sources(data, tname='C:/Users/Max/Documents/Uni/MPhys/semester 2/flu
 
                 sources[index] = sources[index].append(data.iloc[[i]].copy(), ignore_index=True)
 
-    newrow = 0
-    for i in sources:
-        newrow += i.shape[0]
+    n = n_entrys(sources)
 
     print('{} sources'.format(len(sources)))
-    print('was {} rows, now {}'.format(data.shape[0], newrow))
+    print('was {} rows, now {}'.format(data.shape[0], n))
 
     return sources
 
 
-def remove_bad(soudata):
+def remove_bad(sources, multiplier=10, max_fl=30):
 
     print('\nflagging...')
-    multi = 10
-    print('multiplyer factor {}'.format(multi))
-    counter = 0
+    print('multiplyer factor {}'.format(multiplier))
 
-    for i in range(len(soudata)):
-        dev = np.std(soudata[i][' int_flux'])
-        ch = multi*dev
-        for j in range(soudata[i].shape[0]):
-            if soudata[i].iloc[j, 10] > ch:
-                soudata[i].drop([j], axis=0)
-                counter += 1
+    counter_anom1 = 0
+    counter_anom2 = 0
 
-    print('removed {} rows'.format(counter))
+    for i in range(len(sources)):
+
+        dev = np.std(sources[i][' int_flux'])
+        mean = np.average(sources[i][' int_flux'])
+
+        ch = multiplier*dev
+
+        j = 0
+        length = sources[i].shape[0]
+        while j < length:
+
+            try:
+                if abs(sources[i].iloc[j, 10] - mean) > ch:
+                    sources[i] = sources[i].drop([j], axis=0).reset_index(drop=True)
+                    counter_anom1 += 1
+                    j = 0
+
+                elif sources[i].iloc[j, 10] > max_fl:
+                    sources[i] = sources[i].drop([j], axis=0).reset_index(drop=True)
+                    counter_anom2 += 1
+                    j = 0
+
+                else:
+                    j += 1
+
+            except KeyError:
+                continue
+            except IndexError:
+                if sources[i].shape[0] == 0 or j >= sources[i].shape[0]:
+                    break
+                print('indexerror')
+                print(j)
+                print(sources[i])
+                exit()
+
+    print('anom1 - {}\nanom2 - {}'.format(counter_anom1, counter_anom2))
+    print('{} rows remain'.format(n_entrys(sources)))
+
+    return sources
 
 
-def test(data):
+def n_entrys(sources):
+    newrow = 0
+    for i in sources:
+        newrow += i.shape[0]
+    return newrow
 
-    stds = []
-
-    done = []
-    for index, row in data.iterrows():
-
-        pix = row['bin']
-
-        if pix in done:
-            continue
-
-        flux = []
-        for index2, row2 in data.iterrows():
-            if row2['bin'] == pix:
-                # looping over a source now
-                flux.append(row2[' int_flux'])
-
-        stds.append(np.std(flux))
-
-        done.append(pix)
-
-
-    plt.figure()
-    plt.hist(stds, bins=20)
 
 
 if __name__ == '__main__':
     j2217, j2208 = extract()
-    #sourced = combine_sources(j2217)
-    #test(sourced)
-
 
     j17sour = isolate_sources(j2217,
                      tname='C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/pb_30jul2012_J2217.csv')
-    remove_bad(j17sour)
+    flagged = remove_bad(j17sour, multiplier=0, max_fl=0)
 
+    # print(flagged)
 
     plt.show()
 
