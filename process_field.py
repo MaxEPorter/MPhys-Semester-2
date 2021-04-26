@@ -36,7 +36,7 @@ def plot_fluxes(flx, err, index):
 
     ax.set_title(flx.iloc[index]['NVSS id'])
     ax.set_xlabel('Date')
-    ax.set_ylabel('Jansky')
+    ax.set_ylabel('Janskys')
 
 
 def hist_dev(flx, err):
@@ -61,9 +61,9 @@ if __name__ == '__main__':
     print(errors)
 
     # last arg is the index of source in flux table, eg 0 is first source
-    plot_fluxes(fluxes, errors, 0)
+    plot_fluxes(fluxes, errors, 7)
 
     # plot standard deviation of all sources in table as histogram
-    hist_dev(fluxes, errors)
+    # hist_dev(fluxes, errors)
 
     plt.show()
