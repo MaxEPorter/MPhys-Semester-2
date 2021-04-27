@@ -28,7 +28,7 @@ def std_hist(sources):
 
 def chi_sqrd(sources):
 
-    redchi = []
+    etas = []
     variation = []
     for source in sources:
         # looping over sources
@@ -37,40 +37,34 @@ def chi_sqrd(sources):
             continue
 
         # dates is x,  int_flux is y
-
+        """
         linear_mod = odr.Model(f_flat)
         data = odr.Data(source['dates'], source[' int_flux'], we=1./np.power(source[' int_flux_err'], 2))
         od = odr.ODR(data, linear_mod, beta0=[0.5])
         output = od.run()
         # output.pprint()
-
+        """
         fweights = 1./np.power(source[' int_flux_err'], 2)
+        faverage = np.average(source[' int_flux'], weights=fweights)
         fweightssum = np.sum(fweights)
 
         # ---------------------  flux density coefficient of variation ------------------
         variation.append(np.std(source[' int_flux'],
-                                ddof=1)/np.average(source[' int_flux'],
-                                weights=fweights))
+                                ddof=1)/faverage)
 
         # ------------------------ CHISQRD -----------------------
-        chisqrd = 0
-        dof = source.shape[0] - 2
+        eta = 0
+        dof = source.shape[0] - 1
         for i in range(source.shape[0]):
             # looping over row in source
 
-            # observed-expected)squared/expected
-            e = f_flat(output.beta, source['dates'][i])
-            chisqrd += ((source[' int_flux'][i] - e) ** 2) / e
+            eta += np.power(source[' int_flux'] - faverage, 2)/np.power(source[' int_flux_err'], 2)
 
-        if chisqrd < 0:
-            print('Negative chi removed')
-            continue
-
-        redchi.append(chisqrd / dof)
+        etas.append(eta / dof)
 
     plt.figure()
-    plt.hist(redchi, bins=200)
-    plt.xlabel('Reduced $\chi^2$')
+    plt.hist(etas, bins=200)
+    plt.xlabel(r'Reduced $\eta_\nu$')
 
     plt.figure()
     plt.hist(variation, bins=40)
