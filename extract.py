@@ -145,6 +145,16 @@ def remove_bad(sources, multiplier=10, max_fl=30):
     return sources
 
 
+def plot_data(sources):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(221)
+    ax2 = fig.add_subplot(222)
+    for i in sources:
+        ax.scatter(i['dates'], i[' int_flux'])
+        ax2.scatter(i['dates'], i[' int_flux_err'])
+
+
 def n_entrys(sources):
     newrow = 0
     for i in sources:
@@ -161,7 +171,9 @@ if __name__ == '__main__':
 
     j17sour = isolate_sources(j2217,
                      tname=flocs['j2217_template'])
-    flagged = remove_bad(j17sour, multiplier=0, max_fl=0)
+    flagged = remove_bad(j17sour, multiplier=10, max_fl=30)
+
+    plot_data(flagged)
 
     # print(flagged)
 

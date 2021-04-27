@@ -59,13 +59,14 @@ def chi_sqrd(sources):
         for i in range(source.shape[0]):
             # looping over row in source
 
-            eta += np.power(source[' int_flux'] - faverage, 2)/np.power(source[' int_flux_err'], 2)
+            eta += np.power(source[' int_flux'][i] - faverage, 2)/np.power(source[' int_flux_err'][i], 2)
 
         etas.append(eta / dof)
 
+    print(etas)
     plt.figure()
     plt.hist(etas, bins=200)
-    plt.xlabel(r'Reduced $\eta_\nu$')
+    plt.xlabel(r'$\eta_\nu$')
 
     plt.figure()
     plt.hist(variation, bins=40)
@@ -103,7 +104,10 @@ if __name__ == '__main__':
     j2217_sources = extract.isolate_sources(j2217, tname=flocs['j2217_template'])
     j2217_sources_flagged = extract.remove_bad(j2217_sources, multiplier=10, max_fl=30)
 
-    j2208_sources = extract.isolate_sources(j2208, tname=flocs['j2208_temp'])
+    j2208_sources = extract.isolate_sources(j2208, tname=flocs['j2208_template'])
+    j2208_sources_flagged = extract.remove_bad(j2208_sources, multiplier=10, max_fl=30)
+
+    all_sources = j2217_sources_flagged + j2208_sources_flagged
 
     chi_sqrd(j2217_sources_flagged)
     test_chisqrd(j2217_sources_flagged)
