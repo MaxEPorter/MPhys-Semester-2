@@ -2,6 +2,7 @@ import extract
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.odr as odr
+import json
 
 
 def f_lin(B, x):
@@ -94,9 +95,15 @@ def test_chisqrd(sources):
 
 if __name__ == '__main__':
 
+    with open('source_locations.json', 'r') as f:
+        flocs = json.load(f)
+
     j2217, j2208 = extract.extract()
-    j2217_sources = extract.isolate_sources(j2217)
+
+    j2217_sources = extract.isolate_sources(j2217, tname=flocs['j2217_template'])
     j2217_sources_flagged = extract.remove_bad(j2217_sources, multiplier=10, max_fl=30)
+
+    j2208_sources = extract.isolate_sources(j2208, tname=flocs['j2208_temp'])
 
     chi_sqrd(j2217_sources_flagged)
     test_chisqrd(j2217_sources_flagged)

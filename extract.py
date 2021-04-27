@@ -4,14 +4,19 @@ import os
 import matplotlib.pyplot as plt
 import datetime
 from astropy.time import Time
+import json
 
 
 def extract():
 
+    locs = {}
+    with open('source_locations.json', 'r') as f:
+        locs = json.load(f)
+
     data = []
 
-    for filename in os.listdir('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733'):
-        data.append(pandas.read_csv('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/' + filename))
+    for filename in os.listdir(locs['j2217']):
+        data.append(pandas.read_csv(locs['j2217'] + '/' + filename))
 
         # get datetime
         day = int(filename[3:5])
@@ -29,8 +34,8 @@ def extract():
     j17 = pandas.concat(data)
 
     data = []
-    for filename in os.listdir('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2208+5500'):
-        data.append(pandas.read_csv('C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2208+5500/' + filename))
+    for filename in os.listdir(locs['j2208']):
+        data.append(pandas.read_csv(locs['j2208'] + '/' + filename))
 
         # get datetime
         minus = filename.find('-')
@@ -53,7 +58,7 @@ def extract():
     return j17, j08
 
 
-def isolate_sources(data, tname='C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/pb_30jul2012_J2217.csv'):
+def isolate_sources(data, tname):
 
     template = pandas.read_csv(tname)
 
@@ -149,10 +154,13 @@ def n_entrys(sources):
 
 
 if __name__ == '__main__':
+    with open('source_locations.json', 'r') as f:
+        flocs = json.load(f)
+
     j2217, j2208 = extract()
 
     j17sour = isolate_sources(j2217,
-                     tname='C:/Users/Max/Documents/Uni/MPhys/semester 2/flux_densities/J2217+5733/pb_30jul2012_J2217.csv')
+                     tname=flocs['j2217_template'])
     flagged = remove_bad(j17sour, multiplier=0, max_fl=0)
 
     # print(flagged)
