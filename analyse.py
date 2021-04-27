@@ -9,6 +9,10 @@ def f_lin(B, x):
     return B[0]*x + B[1]
 
 
+def f_flat(B, x):
+    return B[0] + 0*x
+
+
 def std_hist(sources):
 
     std = []
@@ -34,16 +38,19 @@ def chi_sqrd(sources):
 
         # dates is x,  int_flux is y
 
-        linear_mod = odr.Model(f_lin)
+        linear_mod = odr.Model(f_flat)
         data = odr.Data(source['dates'], source[' int_flux'], we=1./np.power(source[' int_flux_err'], 2))
-        od = odr.ODR(data, linear_mod, beta0=[1e-6, 0.5])
+        od = odr.ODR(data, linear_mod, beta0=[0.5])
         output = od.run()
         # output.pprint()
+
+        fweights = 1./np.power(source[' int_flux_err'], 2)
+        fweightssum = np.sum(fweights)
 
         # ---------------------  flux density coefficient of variation ------------------
         variation.append(np.std(source[' int_flux'],
                                 ddof=1)/np.average(source[' int_flux'],
-                                weights=1./np.power(source[' int_flux_err'], 2)))
+                                weights=fweights))
 
         # ------------------------ CHISQRD -----------------------
         chisqrd = 0
@@ -52,7 +59,7 @@ def chi_sqrd(sources):
             # looping over row in source
 
             # observed-expected)squared/expected
-            e = f_lin(output.beta, source['dates'][i])
+            e = f_flat(output.beta, source['dates'][i])
             chisqrd += ((source[' int_flux'][i] - e) ** 2) / e
 
         if chisqrd < 0:
@@ -74,9 +81,9 @@ def test_chisqrd(sources):
 
     test_index = 2
 
-    linear_mod = odr.Model(f_lin)
+    linear_mod = odr.Model(f_flat)
     data = odr.Data(sources[test_index]['dates'], sources[test_index][' int_flux'], we=1./np.power(sources[test_index][' int_flux_err'], 2))
-    od = odr.ODR(data, linear_mod, beta0=[1, 1])
+    od = odr.ODR(data, linear_mod, beta0=[1])
     output = od.run()
     print('\ntest chisqrd odr output')
     output.pprint()
@@ -84,7 +91,7 @@ def test_chisqrd(sources):
     plt.figure()
     plt.errorbar(sources[test_index]['dates'], sources[test_index][' int_flux'], yerr=sources[test_index][' int_flux_err'], fmt='.')
     x = np.linspace(min(sources[2]['dates']), max(sources[2]['dates']), 100)
-    y = f_lin(output.beta, x)
+    y = f_flat(output.beta, x)
     plt.plot(x, y)
     plt.xlabel('mjd')
     plt.ylabel('int_flux')
