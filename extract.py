@@ -145,14 +145,77 @@ def remove_bad(sources, multiplier=10, max_fl=30):
     return sources
 
 
+def average_sources(sources, write=False):
+
+    s_average = pandas.DataFrame(columns=['ra', 'ra_err', 'dec', 'dec_err', 'smaj', 'smaj_err', 'smin', 'smin_err',
+                                          'pa', 'pa_err', 'int_flux', 'int_flux_err', 'pk_flux', 'pk_flux_err', 'n_points'])
+
+    with open('source_locations.json', 'r') as f:
+        floc = json.load(f)
+
+    for source in sources:
+
+        if source.shape[0] < 3:
+            continue
+
+        raweights = 1./np.power(source[' ra_err'], 2)
+        decweights = 1./np.power(source[' dec_err'], 2)
+        smajweights = 1./np.power(source[' smaj_err'], 2)
+        sminweights = 1./np.power(source[' smin_err'], 2)
+        paweights = 1./np.power(source[' pa_err'], 2)
+        fluxweights = 1./np.power(source[' int_flux_err'], 2)
+        pkweights = 1./np.power(source[' pk_flux_err'], 2)
+
+        raaverage  = np.average(source['ra'], weights=raweights)
+        raerr = 1./np.sqrt(np.sum(raweights))
+
+        decaverage = np.average(source[' dec'], weights=decweights)
+        decerr = 1./np.sqrt(np.sum(decweights))
+
+        smajaverage = np.average(source[' smaj'], weights=smajweights)
+        smajerr = 1./np.sqrt(np.sum(smajweights))
+
+        sminaverage = np.average(source[' smin'], weights=sminweights)
+        sminerr = 1./np.sqrt(np.sum(sminweights))
+
+        paaverage = np.average(source[' pa'], weights=paweights)
+        paerr = 1./np.sqrt(np.sum(paweights))
+
+        fluxaverage = np.average(source[' int_flux'], weights=fluxweights)
+        fluxerr = 1./np.sqrt(np.sum(fluxweights))
+
+        pkaverage = np.average(source[' pk_flux'], weights=pkweights)
+        pkerr = 1./np.sqrt(np.sum(pkweights))
+
+        s_average = s_average.append({'ra': raaverage, 'ra_err': raerr, 'dec': decaverage, 'dec_err': decerr,
+                                      'smaj': smajaverage, 'smaj_err': smajerr, 'smin': sminaverage,
+                                      'smin_err': sminerr, 'pa': paaverage, 'pa_err': paerr, 'int_flux': fluxaverage,
+                                      'int_flux_err': fluxerr, 'pk_flux': pkaverage, 'pk_flux_err': pkerr,
+                                      'n_points': source.shape[0]}, ignore_index=True)
+
+        if write:
+
+            rastr = '{:.6f}'.format(raaverage).replace('.', '-')
+            decstr = '{:.6f}'.format(decaverage).replace('.', '-')
+            source.to_csv(floc['sources'] + '/{} {}.csv'.format(rastr, decstr), encoding='utf-8', index=False)
+
+    if write:
+
+        s_average = average_sources(sources)
+        s_average.to_csv(floc['sources'] + '/average.csv', encoding='utf-8', index=False)
+
+    print(s_average)
+    return s_average
+
+
 def plot_data(sources):
 
     fig = plt.figure()
-    ax = fig.add_subplot(221)
-    ax2 = fig.add_subplot(222)
+    ax = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212)
     for i in sources:
         ax.scatter(i['dates'], i[' int_flux'])
-        ax2.scatter(i['dates'], i[' int_flux_err'])
+        ax2.scatter(i['dates'], 1/np.power(i[' int_flux_err'], 2))
 
 
 def n_entrys(sources):
@@ -174,6 +237,8 @@ if __name__ == '__main__':
     flagged = remove_bad(j17sour, multiplier=10, max_fl=30)
 
     plot_data(flagged)
+
+    average_sources(flagged, write=True)
 
     # print(flagged)
 
