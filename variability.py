@@ -27,10 +27,11 @@ def std_hist(sources):
     plt.hist(std, bins=60)
 
 
-def chi_sqrd(sources):
+def analyse(sources):
 
     etas = []
     variation = []
+    faverages = []
     for source in sources:
         # looping over sources
 
@@ -45,9 +46,12 @@ def chi_sqrd(sources):
         output = od.run()
         # output.pprint()
         """
+
         fweights = 1./np.power(source[' int_flux_err'], 2)
         faverage = np.average(source[' int_flux'], weights=fweights)
-        fweightssum = np.sum(fweights)
+        faverages.append(faverage)
+
+        # print('odr av -> {}, faverage -> {}'.format(output.beta, faverage))
 
         # ---------------------  flux density coefficient of variation ------------------
         variation.append(np.std(source[' int_flux'],
@@ -61,16 +65,29 @@ def chi_sqrd(sources):
 
             eta += np.power(source[' int_flux'][i] - faverage, 2)/np.power(source[' int_flux_err'][i], 2)
 
+        red_eta = eta/dof
         etas.append(eta / dof)
 
     print(etas)
     plt.figure()
-    plt.hist(etas, bins=200)
+    plt.hist(etas, bins=10**np.linspace(0, 5, 40))
+    plt.xscale('log')
     plt.xlabel(r'$\eta_\nu$')
 
     plt.figure()
     plt.hist(variation, bins=40)
     plt.xlabel('flux density coefficient of variation')
+
+    plt.figure()
+    plt.scatter(faverages, variation)
+    plt.xlabel('average flux')
+    plt.ylabel('variation')
+
+    plt.figure()
+    plt.scatter(variation, etas)
+    plt.xlabel('variation')
+    plt.ylabel(r'$\eta_\nu$')
+    plt.yscale('log')
 
 
 def test_chisqrd(sources):
@@ -101,16 +118,18 @@ if __name__ == '__main__':
 
     j2217, j2208 = extract.extract()
 
-    j2217_sources = extract.isolate_sources(j2217, tname=flocs['j2217_template'])
+    j2217_sources = extract.isolate_sources(j2217, tname=flocs['j2217_template'], ignore='j2217_regionignore.csv')
     j2217_sources_flagged = extract.remove_bad(j2217_sources, multiplier=10, max_fl=30)
 
-    j2208_sources = extract.isolate_sources(j2208, tname=flocs['j2208_template'])
+    j2208_sources = extract.isolate_sources(j2208, tname=flocs['j2208_template'], ignore='j2208_regionignore.csv')
     j2208_sources_flagged = extract.remove_bad(j2208_sources, multiplier=10, max_fl=30)
 
     all_sources = j2217_sources_flagged + j2208_sources_flagged
 
-    chi_sqrd(j2217_sources_flagged)
-    test_chisqrd(j2217_sources_flagged)
+    #chi_sqrd(j2217_sources_flagged)
+    analyse(all_sources)
+
+    # test_chisqrd(j2217_sources_flagged)
 
     plt.show()
 
