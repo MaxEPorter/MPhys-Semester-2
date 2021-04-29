@@ -6,6 +6,9 @@ import datetime
 from astropy.time import Time
 import json
 
+plt.style.use('seaborn-whitegrid')
+plt.rcParams["font.family"] = "serif"
+
 
 def extract():
 
@@ -125,8 +128,19 @@ def remove_bad(sources, multiplier=10, max_fl=30):
 
     counter_anom1 = 0
     counter_anom2 = 0
+    counter_too_few = 0
 
     for i in range(len(sources)):
+
+        too_few = False
+        # check number of sources
+        if sources[i].shape[0] < 5:
+            too_few = True
+            for j in range(sources[i].shape[0]):
+                sources[i] = sources[i].drop([j], axis=0)
+                counter_too_few += 1
+        if too_few:
+            continue
 
         dev = np.std(sources[i][' int_flux'])
         mean = np.average(sources[i][' int_flux'])
@@ -161,7 +175,7 @@ def remove_bad(sources, multiplier=10, max_fl=30):
                 print(sources[i])
                 exit()
 
-    print('anom1 - {}\nanom2 - {}'.format(counter_anom1, counter_anom2))
+    print('anom1 - {}\nanom2 - {}\ntoo_few - {}'.format(counter_anom1, counter_anom2, counter_too_few))
     print('{} rows remain'.format(n_entrys(sources)))
 
     return sources
@@ -230,7 +244,7 @@ def average_sources(sources, write=False):
     return s_average
 
 
-def plot_data(sources):
+def plot_sources(sources):
 
     fig = plt.figure()
     ax = fig.add_subplot(211)
@@ -252,6 +266,68 @@ def plot_data(sources):
     ox.invert_xaxis()
 
 
+def source_by_pos(sources, ra, dec):
+
+    rad = 0.02
+    ra_min = ra - rad
+    ra_max = ra + rad
+    dec_min = dec - rad
+    dec_max = dec + rad
+
+    for i in sources:
+        if i.shape[0] == 0:
+            continue
+        if ra_min < i['ra'][0] < ra_max and dec_min < i[' dec'][0] < dec_max:
+            return i
+
+    print('Cant find source by position')
+    return None
+
+
+def read_source(ra, dec):
+
+    rad = 0.02
+    ra_min = ra - rad
+    ra_max = ra + rad
+    dec_min = dec - rad
+    dec_max = dec + rad
+
+    with open('source_locations.json', 'r') as f:
+        locs = json.load(f)
+
+    source = None
+    counter = 0
+    for filename in os.listdir(locs['sources']):
+
+        r = float('{}.{}'.format(filename[0:4], filename[5:11]))
+        d = float('{}.{}'.format(filename[12:14], filename[15:-4]))
+
+        if ra_min < r < ra_max and dec_min < d < dec_max:
+
+            counter += 1
+            source = pandas.read_csv(locs['sources'] + '/' + filename)
+            print('found {} near {},{}'.format(filename, ra, dec))
+
+    if counter > 1:
+        print('WARNING FOUND MULTIPLE SOURCES AT {}, {}'.format(ra, dec))
+    elif counter == 0:
+        print('FOUND NO SOURCES AT {},{}'.format(ra, dec))
+
+    return source
+
+
+def read_sources():
+
+    sources = []
+    with open('source_locations.json', 'r') as f:
+        locs = json.load(f)
+
+    for filename in os.listdir(locs['sources']):
+        sources.append(pandas.read_csv(locs['sources'] + '/' + filename))
+
+    return sources
+
+
 def plot_all(data):
 
     fig = plt.figure()
@@ -271,22 +347,36 @@ def n_entrys(sources):
 
 
 if __name__ == '__main__':
+
+    old="""
+    
     with open('source_locations.json', 'r') as f:
         flocs = json.load(f)
 
     j2217, j2208 = extract()
-    # plot_all(j2217)
     j17sour = isolate_sources(j2217,
                      tname=flocs['j2217_template'], ignore='j2217_regionignore.csv')
-    f17_flagged = remove_bad(j17sour, multiplier=10, max_fl=30)
+    j17_flagged = remove_bad(j17sour, multiplier=10, max_fl=30)
+
+    #plot_all(j2217)
     # plot_data(j17sour)
-    # plot_data(f17_flagged)
-    # average_sources(f17_flagged, write=False)
+    #plot_sources(j17_flagged)
+    # average_sources(j17_flagged, write=False)
 
     j08_sour = isolate_sources(j2208, tname=flocs['j2208_template'], ignore='j2208_regionignore.csv')
     j08_flag = remove_bad(j08_sour, multiplier=10, max_fl=30)
-    plot_all(j2208)
-    plot_data(j08_flag)
+    # average_sources(j08_flag, write=True)
+
+    all_sources = j17_flagged + j08_flag
+    average_sources(all_sources, write=True)
+    """
+
+    sources = read_sources()
+    plot_sources(sources)
+
+
+    # plot_all(j2208)
+    # plot_sources(j08_flag)
 
     plt.show()
 

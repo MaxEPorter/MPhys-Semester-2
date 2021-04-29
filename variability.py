@@ -4,6 +4,9 @@ import numpy as np
 import scipy.odr as odr
 import json
 
+plt.style.use('seaborn-whitegrid')
+plt.rcParams["font.family"] = "serif"
+
 
 def f_lin(B, x):
     # linear function, B[0] gradient, b[1] intercept
@@ -35,7 +38,7 @@ def analyse(sources):
     for source in sources:
         # looping over sources
 
-        if source.shape[0] < 5:
+        if source.shape[0] < 4:
             continue
 
         # dates is x,  int_flux is y
@@ -90,6 +93,20 @@ def analyse(sources):
     plt.yscale('log')
 
 
+def light_curve(sources, ra, dec):
+
+    s = extract.source_by_pos(sources, ra, dec)
+    fweights = 1. / np.power(s[' int_flux_err'], 2)
+    faverage = np.average(s[' int_flux'], weights=fweights)
+
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.errorbar(s['dates'], s[' int_flux'], yerr=s[' int_flux_err'], fmt='.', color='black')
+    ax.plot([min(s['dates']), max(s['dates'])], [faverage, faverage], color='mediumseagreen')
+    ax.set_ylabel('Flux density (Jy)')
+    ax.set_xlabel('time (MJD)')
+
+
 def test_chisqrd(sources):
 
     test_index = 2
@@ -127,9 +144,10 @@ if __name__ == '__main__':
     all_sources = j2217_sources_flagged + j2208_sources_flagged
 
     #chi_sqrd(j2217_sources_flagged)
-    analyse(all_sources)
+    # analyse(all_sources)
 
     # test_chisqrd(j2217_sources_flagged)
+    light_curve(all_sources, 330.885, 54.505)
 
     plt.show()
 
