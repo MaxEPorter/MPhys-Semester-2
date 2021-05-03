@@ -176,9 +176,17 @@ def remove_bad(sources, multiplier=10, max_fl=30):
                 exit()
 
     print('anom1 - {}\nanom2 - {}\ntoo_few - {}'.format(counter_anom1, counter_anom2, counter_too_few))
+
+    new_sources = []
+    for i in sources:
+        if i.shape[0] < 5:
+            continue
+        else:
+            new_sources.append(i.copy())
+
     print('{} rows remain'.format(n_entrys(sources)))
 
-    return sources
+    return new_sources
 
 
 def average_sources(sources, write=False):
@@ -266,6 +274,35 @@ def plot_sources(sources):
     ox.invert_xaxis()
 
 
+def plot_by_epoch(data):
+
+    print(data)
+
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.invert_xaxis()
+    #colours = np.linspace(0, 1, 16)
+    #counter = 0
+    done = []
+    for i in range(data.shape[0]):
+        ras = []
+        decs = []
+        date = data.iloc[i, 14]
+        if date not in done:
+            done.append(date)
+            for j in range(data.shape[0]):
+                # print(data.iloc[j, 14], date)
+                if data.iloc[j, 14] == date:
+                    ras.append(data.iloc[j, 0])
+                    decs.append(data.iloc[j, 2])
+
+
+            ax.scatter(ras, decs)#, color=(colours[counter], 0.5, 0))
+            #counter += 1
+        else:
+            continue
+
+
 def source_by_pos(sources, ra, dec):
 
     rad = 0.02
@@ -347,8 +384,6 @@ def n_entrys(sources):
 
 
 if __name__ == '__main__':
-
-    old="""
     
     with open('source_locations.json', 'r') as f:
         flocs = json.load(f)
@@ -357,8 +392,9 @@ if __name__ == '__main__':
     j17sour = isolate_sources(j2217,
                      tname=flocs['j2217_template'], ignore='j2217_regionignore.csv')
     j17_flagged = remove_bad(j17sour, multiplier=10, max_fl=30)
+    plot_by_epoch(j2217)
 
-    #plot_all(j2217)
+    plot_all(j2217)
     # plot_data(j17sour)
     #plot_sources(j17_flagged)
     # average_sources(j17_flagged, write=False)
@@ -368,11 +404,10 @@ if __name__ == '__main__':
     # average_sources(j08_flag, write=True)
 
     all_sources = j17_flagged + j08_flag
-    average_sources(all_sources, write=True)
-    """
+    # average_sources(all_sources, write=False)
 
-    sources = read_sources()
-    plot_sources(sources)
+    # sources = read_sources()
+    # plot_sources(sources)
 
 
     # plot_all(j2208)

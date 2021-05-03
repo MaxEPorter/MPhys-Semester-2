@@ -130,6 +130,8 @@ def analyse(sources):
             analysed['unusual'].append(index)
 
     print('found {} unusual points'.format(analysed['unusual']))
+    for i in analysed['unusual']:
+        print('{}, {}'.format(analysed['ra'][i], analysed['dec'][i]))
 
     return analysed
 
@@ -165,7 +167,16 @@ def plot_var_vs_eta(analysed):
 
 def light_curve(sources, ra, dec):
 
+    fog = plt.figure()
+    ox = fog.add_subplot()
+    for i in sources:
+        ox.scatter(i['ra'], i[' dec'], color='mediumseagreen')
+
     s = extract.source_by_pos(sources, ra, dec)
+
+    ox.scatter(s['ra'], s[' dec'], color='crimson')
+    ox.invert_xaxis()
+
     fweights = 1. / np.power(s[' int_flux_err'], 2)
     faverage = np.average(s[' int_flux'], weights=fweights)
 
@@ -187,7 +198,7 @@ def plot_unusual(analysed):
 
         if i in analysed['unusual']:
             ax.scatter(analysed['ra'][i], analysed['dec'][i], color='mediumseagreen')
-            print(analysed['n_points'][i])
+
         else:
             ax.scatter(analysed['ra'][i], analysed['dec'][i], color='dodgerblue')
 
