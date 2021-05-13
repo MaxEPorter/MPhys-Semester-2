@@ -10,8 +10,7 @@ plt.style.use('seaborn-whitegrid')
 plt.rcParams["font.family"] = "serif"
 
 
-def extract():
-
+def extract_all():
     locs = {}
     with open('source_locations.json', 'r') as f:
         locs = json.load(f)
@@ -19,6 +18,7 @@ def extract():
     data = []
 
     for filename in os.listdir(locs['j2217']):
+
         data.append(pandas.read_csv(locs['j2217'] + '/' + filename))
 
         # get datetime
@@ -38,6 +38,68 @@ def extract():
 
     data = []
     for filename in os.listdir(locs['j2208']):
+
+        data.append(pandas.read_csv(locs['j2208'] + '/' + filename))
+
+        # print(filename)
+        # print(data[-1].shape[0])
+
+        # get datetime
+        minus = filename.find('-')
+        day = int(filename[minus + 1:minus + 3])
+        mon = filename[minus + 3:minus + 6]
+        year = int(filename[minus + 6:minus + 8])
+        d = '{}-{}-{}'.format(day, mon, year)
+        d = datetime.datetime.strptime(d, '%d-%b-%y')
+
+        dates = []
+        for i in range(data[-1].shape[0]):
+            dates.append(Time(d).mjd)
+
+        data[-1]['dates'] = dates
+
+    j08 = pandas.concat(data)
+
+    print('loaded j17 and j08')
+
+    return j17, j08
+
+
+def extract():
+
+    locs = {}
+    with open('source_locations.json', 'r') as f:
+        locs = json.load(f)
+
+    data = []
+
+    for filename in os.listdir(locs['j2217']):
+        if filename == 'pb_04may2012_J2217.csv':
+            continue
+
+        data.append(pandas.read_csv(locs['j2217'] + '/' + filename))
+
+        # get datetime
+        day = int(filename[3:5])
+        mon = filename[5:8]
+        year = int(filename[8:12])
+        d = '{}-{}-{}'.format(day, mon, year)
+        d = datetime.datetime.strptime(d, '%d-%b-%Y')
+
+        dates = []
+        for i in range(data[-1].shape[0]):
+            dates.append(Time(d).mjd)
+
+        data[-1]['dates'] = dates
+
+    j17 = pandas.concat(data)
+
+    data = []
+    for filename in os.listdir(locs['j2208']):
+
+        if filename == 'j22-17nov13.csv':
+            continue
+
         data.append(pandas.read_csv(locs['j2208'] + '/' + filename))
 
         # print(filename)
@@ -128,19 +190,11 @@ def remove_bad(sources, multiplier=10, max_fl=30):
 
     counter_anom1 = 0
     counter_anom2 = 0
-    counter_too_few = 0
+    counter_too_few_row = 0
+    counter_duplicates = 0
+    counter_too_few_source = 0
 
     for i in range(len(sources)):
-
-        too_few = False
-        # check number of sources
-        if sources[i].shape[0] < 5:
-            too_few = True
-            for j in range(sources[i].shape[0]):
-                sources[i] = sources[i].drop([j], axis=0)
-                counter_too_few += 1
-        if too_few:
-            continue
 
         dev = np.std(sources[i][' int_flux'])
         mean = np.average(sources[i][' int_flux'])
@@ -152,11 +206,13 @@ def remove_bad(sources, multiplier=10, max_fl=30):
         while j < length:
 
             try:
+                # check for outliers
                 if abs(sources[i].iloc[j, 10] - mean) > ch:
                     sources[i] = sources[i].drop([j], axis=0).reset_index(drop=True)
                     counter_anom1 += 1
                     j = 0
 
+                # check for very high jy bad data
                 elif sources[i].iloc[j, 10] > max_fl:
                     sources[i] = sources[i].drop([j], axis=0).reset_index(drop=True)
                     counter_anom2 += 1
@@ -175,7 +231,49 @@ def remove_bad(sources, multiplier=10, max_fl=30):
                 print(sources[i])
                 exit()
 
-    print('anom1 - {}\nanom2 - {}\ntoo_few - {}'.format(counter_anom1, counter_anom2, counter_too_few))
+        # check for duplicate datapoints
+        done = []
+        lenyfv = sources[i].shape[0]
+        for j in range(sources[i].shape[0]):
+
+            try:
+                date = sources[i].iloc[j, 14]
+            except IndexError:
+                continue
+
+            if sources[i].iloc[j, 14] not in done:
+                done.append(sources[i].iloc[j, 14])
+                duplicates = []
+                for k in range(sources[i].shape[0]):
+                    if sources[i].iloc[k, 14] == done[-1]:
+                        duplicates.append(k)
+                if len(duplicates) == 1:
+                    continue
+                else:
+                    closest = 100
+                    closindx = 0
+                    for k in duplicates:
+                        dis = abs(mean - sources[i].iloc[k, 10])
+                        if dis < closest:
+                            closest = dis
+                            closindx = k
+                    for k in duplicates:
+                        if k == closindx:
+                            continue
+                        else:
+                            sources[i] = sources[i].drop([k], axis=0)
+                            counter_duplicates += 1
+
+            sources[i] = sources[i].reset_index(drop=True)
+
+        # check number of sources
+        if sources[i].shape[0] < 8:
+            counter_too_few_source += 1
+            for j in range(sources[i].shape[0]):
+                sources[i] = sources[i].drop([j], axis=0)
+                counter_too_few_row += 1
+
+    print('anom1 - {}\nanom2 - {}\ntoo_few_row - {}\ntoo_few_source - {}\nduplicates - {}'.format(counter_anom1, counter_anom2, counter_too_few_row, counter_too_few_source, counter_duplicates))
 
     new_sources = []
     for i in sources:

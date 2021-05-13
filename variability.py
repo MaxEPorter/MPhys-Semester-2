@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.odr as odr
 import json
+from astropy.coordinates import SkyCoord
 
 plt.style.use('seaborn-whitegrid')
 plt.rcParams["font.family"] = "serif"
@@ -52,7 +53,7 @@ def analyse(sources):
         'n_points': [],
 
         'eta': [],
-        'eta_err': [],
+
         'variation': [],
         'variation_err': [],
 
@@ -111,9 +112,9 @@ def analyse(sources):
         # print('odr av -> {}, faverage -> {}'.format(output.beta, faverage))
 
         # ---------------------  flux density coefficient of variation ------------------
+        standard_dev = np.std(source[' int_flux'], ddof=1)
+        analysed['variation'].append(standard_dev/faverage)
 
-        analysed['variation'].append(np.std(source[' int_flux'],
-                                ddof=1)/faverage)
 
         # ------------------------ CHISQRD -----------------------
         eta = 0
@@ -126,7 +127,9 @@ def analyse(sources):
         red_eta = eta / dof
         analysed['eta'].append(red_eta)
 
-        if red_eta > 100:
+        if red_eta < 100:
+            analysed['unusual'].append(index)
+        elif analysed['variation'][-1] < .3:
             analysed['unusual'].append(index)
 
     print('found {} unusual points'.format(analysed['unusual']))
@@ -139,16 +142,23 @@ def analyse(sources):
 def plot_eta(analysed):
 
     plt.figure()
-    plt.hist(analysed['eta'], bins=10**np.linspace(0, 5, 40))
+    plt.hist(analysed['eta'], color='mediumpurple', edgecolor='black', bins=10**np.linspace(-1, 3, 40))
     plt.xscale('log')
     plt.xlabel(r'$\eta_\nu$')
+    plt.ylabel('Frequency')
+
+    plt.figure()
+    plt.hist(analysed['eta'], color='mediumpurple', edgecolor='black', bins=np.linspace(0, 15, 40))
+    plt.xlabel(r'$\eta_\nu$')
+    plt.ylabel('Frequency')
 
 
 def plot_variablity(analysed):
 
     plt.figure()
-    plt.hist(analysed['variation'], bins=40)
+    plt.hist(analysed['variation'], bins=40, color='mediumpurple', edgecolor='black')
     plt.xlabel('flux density coefficient of variation')
+    plt.ylabel('Frequency')
 
 
 def plot_var_vs_eta(analysed):
@@ -164,11 +174,21 @@ def plot_var_vs_eta(analysed):
     plt.ylabel(r'$\eta_\nu$')
     plt.yscale('log')
 
+    plt.figure()
+    plt.scatter(analysed['eta'], analysed['int_flux'])
+
 
 def light_curve(sources, ra, dec):
 
-    fog = plt.figure()
-    ox = fog.add_subplot()
+    if dec < 56:
+        xlim = [330.5, 333.5]
+        ylim = [54, 56]
+    else:
+        xlim = [332.8, 336.3]
+        ylim = [56.5, 58.5]
+
+    fig = plt.figure(figsize=(7, 9))
+    ox = fig.add_subplot(211)
     for i in sources:
         ox.scatter(i['ra'], i[' dec'], color='mediumseagreen')
 
@@ -176,34 +196,72 @@ def light_curve(sources, ra, dec):
 
     ox.scatter(s['ra'], s[' dec'], color='crimson')
     ox.invert_xaxis()
+    ox.set_xlim(xlim)
+    ox.set_ylim(ylim)
 
     fweights = 1. / np.power(s[' int_flux_err'], 2)
     faverage = np.average(s[' int_flux'], weights=fweights)
 
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    ax.errorbar(s['dates'], s[' int_flux'], yerr=s[' int_flux_err'], fmt='.', color='black')
+    # fig = plt.figure()
+    ax = fig.add_subplot(212)
+    ax.errorbar(s['dates'], s[' int_flux']/1000, yerr=s[' int_flux_err']/1000, fmt='.', color='black')
     ax.plot([min(s['dates']), max(s['dates'])], [faverage, faverage], color='mediumseagreen')
-    ax.set_ylabel('Flux density (Jy)')
+    ax.set_ylabel('Flux density (mJy)')
     ax.set_xlabel('time (MJD)')
 
 
-def plot_unusual(analysed):
+def plot_unusual(sources, analysed):
 
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    ax.invert_xaxis()
-
-    for i in range(len(analysed['ra'])):
-
-        if i in analysed['unusual']:
-            ax.scatter(analysed['ra'][i], analysed['dec'][i], color='mediumseagreen')
-
-        else:
-            ax.scatter(analysed['ra'][i], analysed['dec'][i], color='dodgerblue')
-
+    counter = 0
     for i in analysed['unusual']:
-        light_curve(extract.read_sources(), analysed['ra'][i], analysed['dec'][i])
+
+        if analysed['dec'][i] < 56:
+            xlim = [330.5, 333.5]
+            ylim = [54, 56]
+            field = 'J2208'
+        else:
+            xlim = [332.8, 336.3]
+            ylim = [56.5, 58.5]
+            field = 'J2217'
+
+        fig = plt.figure(figsize=(7, 10))
+        ox = fig.add_subplot(211)
+        for j in sources:
+            ox.scatter(j['ra'], j[' dec'], color='mediumseagreen')
+
+        s = extract.source_by_pos(sources, analysed['ra'][i], analysed['dec'][i])
+
+        ox.scatter(s['ra'], s[' dec'], color='crimson')
+        ox.set_xlim(xlim)
+        ox.set_ylim(ylim)
+        ox.invert_xaxis()
+
+        fweights = 1. / np.power(s[' int_flux_err'], 2)
+        faverage = np.average(s[' int_flux'], weights=fweights)
+
+        pos = SkyCoord(analysed['ra'][i], analysed['dec'][i], frame='icrs', unit='deg')
+        # pos_str = '{}h{}m{}s +{}d{}m{}s'.format(*pos.ra.hms, pos.dec.day, pos.dec.minute, pos.dec.second)
+
+        # fig = plt.figure()
+        ax = fig.add_subplot(212)
+        ax.errorbar(s['dates'], s[' int_flux']*1000, yerr=s[' int_flux_err']*1000, fmt='.', color='black')
+        ax.plot([min(s['dates']), max(s['dates'])], [faverage*1000, faverage*1000], color='mediumseagreen',
+                label='{}' '\n' '{}' '\n' r'$\xi_\nu= ({:.1f}\pm {:.1f} )mJy$' '\n' r'$ V_\nu = {:.3f}$' '\n' r'$\eta_\nu = {:.3f} $'.format(field, pos.to_string('hmsdms'), analysed['int_flux'][i]*1000, analysed['int_flux_err'][i]*1000, analysed['variation'][i], analysed['eta'][i]))
+        ax.set_ylabel('Flux density (mJy)')
+        ax.set_xlabel('time (MJD)')
+
+        ax.legend()
+        leg = ax.legend(handlelength=0, handletextpad=0, fancybox=True, frameon=True)
+        leg.get_frame().set_edgecolor('black')
+        leg.get_frame().set_facecolor('white')
+        for item in leg.legendHandles:
+            item.set_visible(False)
+
+        counter += 1
+        #plt.savefig('../usual figures/{}.png'.format(counter))
+
+    #for i in analysed['unusual']:
+        #light_curve(extract.read_sources(), analysed['ra'][i], analysed['dec'][i])
 
 
 
